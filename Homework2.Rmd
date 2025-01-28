@@ -1,0 +1,344 @@
+---
+title: "Homework 2"
+author: "Jayden Polansky - jbp2839"
+date: https://github.com/jaydenpolansky/SDS315.git
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, echo=FALSE, message=FALSE, tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(forcats)
+library(tinytex)
+```
+
+
+# **Problem 1: Beauty, or not, in the classroom**
+
+```{r}
+profs <- read.csv('profs.csv')
+
+profs_ggplot <- ggplot(profs)
+```
+
+## **Part A**
+
+```{r, fig.width=8, fig.height=4}
+profs_ggplot + geom_histogram(aes(x=eval), fill='blue', color='black') + labs(x="Course Evaluation Scores", y="Frequency", title="Histogram of UT Intructor's Course Evaluation Scores")
+```
+This histogram displays how many instructors received what grade in UT course evaluation scores, with the score received being on the x-axis and the count for each on the y-axis. This graph is skewed to the left, with a mean of `r round(mean(profs$eval),4)`, and a slightly higher median of `r median(profs$eval)`, meaning most UT instructors, on average, receive a score of a 4 on their course evaluations.
+
+
+
+## **Part B**
+
+```{r, fig.width=8, fig.height=4}
+profs_ggplot + geom_boxplot(aes(x=eval, y=native, fill=native)) + labs(x="Course Evaluation Scores", y="Native English Speaking Instructor?", title="Boxplot of UT Course Evaluation Scores for Native and Non-Native English Instructors") + theme(legend.position = "none", plot.title = element_text(size = 11))
+
+```
+This is a boxplot of UT course evaluation scores that instructors have received based on if they are native English speakers or not, with the evaluation score on the x-axis and the top boxplot meaning English is their native language and the bottom boxplot being that English is not. It can be seen that the mean course evaluation score is higher for native English speaking instructors at around a score of 4 whereas the mean score for non-native English speaking instructors is lower at about 3.60. 
+
+
+## **Part C**
+
+```{r, fig.width=8, fig.height=4}
+profs_ggplot + geom_histogram(aes(x=eval, fill=gender), col='black') + facet_wrap(~gender) + labs(x="Course Evaluation Score", y="Frequency", title="Distribution of UT Course Evaluation Scores for Male and Female Instructors") + theme(legend.position = "none")
+```
+This is a faceted histogram displaying the course evaluation scores for male and female instructors, with the score distribution for females being on the left and males on the right. The x-axis is the course evaluation score received and the y-axis is the number of instructors that received that score. Both histograms are skewed to the left, but the male histogram has a higher mean score of about `r round(as.data.frame(summarize(group_by(profs, gender), mean(eval)))[2,2],2)` whereas the female mean is at about `r round(as.data.frame(summarize(group_by(profs, gender), mean(eval)))[1,2],2)`. The male instructors also had a few lower scores, but in general, received more higher scores than females did, meaning male instructors tended to receive higher course evaluation scores.
+
+
+
+
+## **Part D**
+
+```{r, fig.width=8, fig.height=4}
+ggplot(profs, aes(x=beauty, y=eval)) + geom_point(col='blue') + geom_smooth(method = "lm", se = FALSE, color = "red") + labs(x="Instructor's Physical Attractiveness Rating", y="Course Evaluation Score", title="Scatterplot of Attractiveness Rating and Course Evaluation Score for Instructors at UT") + theme(plot.title = element_text(size = 11))
+
+```
+This is a scatterplot that displays the instructor's physical attractiveness rating (on x-axis) against the same instructor's course evaluation score (on y-axis). It can be seen from the line of best fit (the red line) that there is a very weak, positive correlation between beauty and evaluation score for UT instructors, as the r-value for this scatterplot is `r round(cor(profs$beauty, profs$eval),2)`.
+
+
+
+\newpage
+
+
+
+# **Problem 2: Bike sharing**
+
+```{r}
+bikes <- read.csv('bikeshare.csv')
+
+```
+
+## **Part A**
+
+```{r, fig.width=8, fig.height=4}
+
+hr = NULL
+hrly_rentals = NULL
+bikes_sorted = data.frame(hr,hrly_rentals)
+for(i in 0:23)
+{
+  sum = 0
+  count = 0
+  for(j in 1:nrow(bikes))
+  {
+    if(bikes$hr[j] == i)
+    {
+      sum = sum + bikes$total[j]
+      count = count + 1
+    }
+  }
+  new_data <- data.frame(hr=i,hrly_rentals=(sum/count))
+  bikes_sorted <- rbind(bikes_sorted, new_data)
+}
+
+ggplot(bikes_sorted, aes(x=hr, y=hrly_rentals)) + geom_line(size=1, col='darkgreen') + labs(x="Hour of the Day", y="Average Bike Rental Count", title="Average Hourly Bike-sharing Rentals Over the Day in NYC from 2011-2012") + theme(plot.title = element_text(size = 11))
+```
+This line graph represents the average number of bike rentals for each hour of the day in NYC during all days from 2011-2012, with the x-axis representing what hour of the day it was and the y-axis representing the count of bike rentals. The graph is bimodal, with what appears to be two peaks: one between hours 7-8 and another between hours 16-17, meaning those were the times of day when bike rentals were most popular in NYC.
+
+
+
+## **Part B**
+
+```{r, fig.width=8, fig.height=4}
+hr=NULL
+total=NULL
+type=NULL
+workingDay_bikes = data.frame(hr, total, type)
+
+for(i in 0:23)
+{
+  sum_work = 0
+  sum_not = 0
+  count_work = 0
+  count_not = 0
+  for(j in 1:nrow(bikes))
+  {
+    if(bikes$hr[j] == i)
+    {
+      if(bikes$workingday[j] == 0)
+      {
+        sum_not = sum_not + bikes$total[j]
+        count_not = count_not + 1
+      }
+      else
+      {
+        sum_work = sum_work + bikes$total[j]
+        count_work = count_work + 1
+      }
+    }
+  }
+  new_data <- data.frame(hr=i,total=(sum_work/count_work),type="Working Day")
+  workingDay_bikes <- rbind(workingDay_bikes, new_data)
+  new_data <- data.frame(hr=i,total=(sum_not/count_not),type="Non-working Day")
+  workingDay_bikes <- rbind(workingDay_bikes, new_data)
+}
+
+
+ggplot(workingDay_bikes, aes(x=hr, y=total, col=type)) + geom_line(size=1) + facet_wrap(~ type) + labs(x="Hour of the Day", y="Average Bike Rental Count", title="Average Hourly Bike-sharing Rentals Over the Day in NYC from 2011-2012 for Working vs. Non-working Days") + theme(legend.position="none", plot.title = element_text(size = 9.5))
+
+```
+This is a faceted line graph to show the average bike rental counts (represented by y-axis) across the hours of the day (represented on x-axis) by if it was a working day (meaning normal weekday) or not (meaning holiday, weekend, etc). It can be seen that non-working days had less average bike rentals, with the max being around 380 rentals and a unimodal distribution with a peak between 11-12. On the other hand, working days typically had more bike rentals with a max of about 530 bike rentals and was bimodal with a peak between hours 7-8 and another between hours 16-17, meaning weekdays around those times were the most popular to rent bikes.
+
+
+
+
+## **Part C**
+
+```{r, fig.width=8, fig.height=4}
+
+filtered_bikes <- filter(bikes, hr==9)
+
+weather_code = NULL
+working = NULL
+avg = NULL
+
+sorted_bikes <- data.frame(weather_code, working, avg)
+
+for(j in 1:3){
+  sum_w = 0
+  sum_n = 0
+  cnt_w = 0    
+  cnt_n = 0
+  for(i in 1:nrow(filtered_bikes)){
+    if(filtered_bikes$weathersit[i] == j){
+      if(filtered_bikes$workingday[i] == 0){
+        sum_n = sum_n + filtered_bikes$total[i]
+        cnt_n = cnt_n + 1
+      }
+      else{
+        sum_w = sum_w + filtered_bikes$total[i]
+        cnt_w = cnt_w + 1
+      }
+    }
+  }
+  new_data1 <- data.frame(weather_code = j, working = "Non-working Day", avg = (sum_n / cnt_n))
+  new_data2 <- data.frame(weather_code = j, working = "Working Day", avg = (sum_w / cnt_w))
+  sorted_bikes <- rbind(sorted_bikes, new_data1)
+  sorted_bikes <- rbind(sorted_bikes, new_data2)
+}
+
+
+ggplot(sorted_bikes, aes(x=weather_code, y=avg, fill=weather_code)) + geom_col() + facet_wrap(~working) + theme(legend.position = "none", plot.title = element_text(size=8.5)) + labs(x="Weather Situation Code", y="Average Ridership", title="Average Ridership for Bike-sharing Rentals During the 9 AM Hour Depending on Working or Non-Working Day in NYC from 2011-2012")
+
+```
+This faceted bar plot shows the average number of riders during the 9 AM hour depending on if it was a working day or not and how many for each type of weather situation. A weather situation code of 1 means better weather (clear, few clouds, etc.) whereas a 3 meant worse weather (light rain/snow, thunderstorms, etc.). So working days had higher ridership than non-working days, and for both, there was more ridership when the weather was better (when the code was a 1 or 2), and less ridership when the weather was worse (code of a 3).
+
+
+
+
+\newpage
+
+# **Problem 3: Capital Metro UT Ridership**
+
+```{r}
+capmetro <- read.csv('capmetro_UT.csv')
+
+capmetro = mutate(capmetro,
+ day_of_week = factor(day_of_week,
+ levels=c("Mon", "Tue", "Wed","Thu", "Fri", "Sat", "Sun")),
+ month = factor(month,
+ levels=c("Sep", "Oct","Nov")))
+```
+
+## **1.**
+
+```{r, fig.width=8, fig.height=4}
+
+filtered_capmetro = data.frame(boarding=numeric(), day_of_week=character(), temp=numeric(), hour_of_day=numeric(), month=character(), weekend=character())
+
+i = 0
+while (i < nrow(capmetro)){
+    avg = 0
+    for(j in 1:4){
+      i = i + 1
+      avg = avg + capmetro$boarding[i]
+    }
+    avg = avg / 4
+    new_data = data.frame(boarding=avg, day_of_week=capmetro$day_of_week[i], temp=capmetro$temperature[i], hour_of_day=capmetro$hour_of_day[i], month=capmetro$month[i], weekend=capmetro$weekend[i])
+    filtered_capmetro <- rbind(filtered_capmetro, new_data)
+}
+
+hourly_avg <- summarise(group_by(filtered_capmetro, hour_of_day, day_of_week, month), avg_boarding = mean(boarding), avg_temp = mean(temp), weekend = weekend)
+
+new_capmetro <- as.data.frame(hourly_avg)
+
+capmetro_ggplot <- ggplot(new_capmetro)
+
+capmetro_ggplot + geom_line(aes(x=hour_of_day, y=avg_boarding, col=month)) + facet_grid(~day_of_week) + labs(x="Hour of the Day", y="Average Boardings", title="Average Boardings of UT Cap Metro Buses by Hour, Day, and Month in 2018")
+```
+The faceted line graph displays the average number of boardings onto UT Cap Metro buses according to the hour of the day, colored by the month, and faceted by the day of the week. The hour of peak boarding is generally similar across all the weekdays, but not on the weekends, as it can be seen that on the Mon, Tue, Wed, Thu, and Fri line graphs that the peak boarding time is between hours 17-18, whereas the weekends have different peak boarding times. The average boardings on Mondays in September might be lower because that is generally the start of the school year so new students are not as familiar or comfortable quite yet with using the UT bus system. Average boardings on Wed/Thu/Fri in November might look lower becasue that is around Thanksgiving so there are most likely less people using the buses then, especially since a lot of people go home for that holiday.
+
+
+
+
+\newpage
+
+## **2.**
+
+```{r, fig.width=8, fig.height=4}
+ggplot_capmetro <- ggplot(capmetro)
+
+ggplot_capmetro + geom_point(aes(x=temperature, y=boarding, col=weekend)) + facet_wrap(~hour_of_day) + labs(x="Temperature (Fahrenheit)", y="Boarding Counts", title="Counts of People Boarding UT Cap Metro Buses vs Temperature by Hour of the Day in 2018") + theme(plot.title = element_text(size=10))
+```
+This faceted scatterplot displays the boarding counts of people onto UT buses (y-axis) versus the temperature outside (x-axis), faceted by the hour of the day (from 6 AM to 9 PM) and color coded for if it was a weekend or weekday. When we hold hour of day and weekend status constant, the temperature does not have a very noticeable effect on the number of UT students riding the bus, because for almost every hour of the day, it does not matter what the temperature is at that hour, as there are pretty much an even number of people boarding at that hour whether the temperature is 50 Fahrenheit or if it is 80 Fahrenheit, meaning the temperature does not have a super large role in ridership.
+
+
+
+\newpage
+
+
+# **Problem 4: Wrangling the Billboard Top 100**
+
+```{r}
+billboard <- read.csv('billboard.csv')
+```
+
+
+## **Part A**
+
+```{r, fig.width=8, fig.height=4}
+
+billboard <- arrange(billboard, desc(weeks_on_chart))
+
+filtered_billboard = data.frame(Performer=character(), Song=character(), Count=numeric())
+
+new_data = data.frame(Performer=billboard$performer[1], Song=billboard$song[1], Count=billboard$weeks_on_chart[1])
+
+filtered_billboard = rbind(filtered_billboard, new_data)
+
+i=2
+while (nrow(filtered_billboard) < 10 && i <= nrow(billboard)){
+  same = 0
+  for(j in 1:nrow(filtered_billboard)){
+    if(billboard$song[i] == filtered_billboard$Song[j] && billboard$performer[i] == filtered_billboard$Performer[j]){
+      same = same + 1
+    }
+  }
+  if(same == 0){
+    new_data = data.frame(Performer=billboard$performer[i], Song=billboard$song[i], Count=billboard$weeks_on_chart[i])
+    filtered_billboard = rbind(filtered_billboard, new_data)
+  }
+  i = i + 1
+}
+  
+billboard_table <- kable(filtered_billboard, caption="Top 10 Most Popular Songs on Billboard Top 100 Since")
+
+billboard_table
+```
+The table shows the top 10 most popular songs on the billboard top 100, which are the songs that have the 10 highest number of weeks in the billboard top 100, as well as the artist of the song and how many weeks it was in the top 100 for.
+
+
+
+## **Part B**
+
+```{r, fig.width=8, fig.height=4}
+billboard <- arrange(billboard, year)
+
+billboard_filtered <- filter(billboard, billboard$year!=1958, billboard$year!=2021)
+
+billboard_subset <- data.frame(Year=numeric(), Count=numeric())
+
+for(i in min(billboard_filtered$year):max(billboard_filtered$year)){
+  subset = filter(billboard_filtered, billboard_filtered$year==i)
+  cnt = unique(subset$song)
+  new_data = data.frame(Year=i, Count=length(cnt))
+  billboard_subset <- rbind(billboard_subset, new_data)
+}
+
+ggplot(billboard_subset, aes(x=Year, y=Count)) + geom_line(size=.8, col='purple') + labs(x="Year",y="Number of Unique Songs",title="Number of Unique Songs that Appeared in Billboard Top 100 in Each Year from 1959-2020")
+
+```
+The line graph shows the number of unique songs that appeared in the top 100 each year over time, with the x-axis being the year and the y-axis being the count of unique songs that year. It can be seen that between 1960-1970, there were a lot more unique songs in the billboard top 100, with the peak being at `r max(billboard_subset$Count)` unique songs in the billboard top 100 in one year. On the otherhand, around the 2000s, there was an all-time low of `r min(billboard_subset$Count)` unique songs in the top 100 in one year. It then rose again, with 2020 having close to as many as the 1960-1970s did.
+
+
+
+## **Part C**
+
+```{r, fig.width=8, fig.height=4}
+
+sub_billboard <- filter(billboard, billboard$weeks_on_chart >= 10)
+new_sub_billboard <- distinct(sub_billboard, song, performer)
+
+performer_table <- table(new_sub_billboard$performer)
+performer_table <- performer_table[performer_table >= 30]
+
+performer_filtered <- as.data.frame(performer_table)
+performer_filtered$Var1 <- fct_reorder(performer_filtered$Var1, desc(performer_filtered$Freq))
+
+
+ggplot(performer_filtered, aes(x=Freq, y=Var1)) + geom_col(fill='darkred') + labs(x="Number of Ten-Week Hits",y="Artist",title="Artists with at Leat 30 Ten-Week Hits in the Billboard Top 100 Since 1958")
+```
+The bar graph shows artists that have at least 30 ten-week hits in the billboard top 100 since 1958, with there being 19 artists total. Elton John has the most by far, with `r max(performer_filtered$Freq)` ten-week hits. Madonna is the next closest with 44 ten-week hits in the billboard top 100 since 1958.
+
+
