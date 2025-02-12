@@ -1,0 +1,268 @@
+---
+title: "Homework 3"
+author: "Jayden Polansky - jbp2839"
+date: https://github.com/jaydenpolansky/SDS315.git
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, echo=FALSE, message=FALSE, options(scipen = 999), tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(forcats)
+library(tinytex)
+library(mosaic)
+```
+
+
+# **Problem 1**
+
+```{r}
+gasprices <- read.csv("gasprices.csv")
+
+gasprices_ggplot <- ggplot(gasprices)
+```
+
+## **Theory A**
+```{r, fig.width=7, fig.height=3}
+gasprices_ggplot + geom_boxplot(aes(x=Price, y=Competitors, fill=Competitors)) + scale_y_discrete(labels = c("N" = "No", "Y" = "Yes")) + labs(x="Gas Prices per Gallon ($)",y="Competitors Nearby?",title="Gas Prices on April 3, 2016 and if Competition was Nearby") + theme(legend.position = "none", plot.title = element_text(size=14))
+
+boot_comp <- do(10000)*diffmean(Price ~ Competitors, data=resample(gasprices))
+
+lower = quantile(boot_comp$diffmean, .025)
+upper = quantile(boot_comp$diffmean, .975)
+ggplot(boot_comp) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Mean Difference in Price ($)", y="Count", title="10,000 Bootstrap Samples of Mean Price Difference of Gas Stations that Did \nand Didn't Have Competition Nearby")
+
+comp <- confint(boot_comp, level = 0.95)
+```
+The first claim we will look over is that gas stations charge more if they lack direct competition in sight. So, after making the boxplot above, it can be seen that the mean price of gas at the gas stations that did not have competition nearby was about four cents higher than those that did have competition nearby. However, to generalize this, a bootstrap sample can be taken 10,000 times, and according to that test, we can be 95% confident that the mean price at gas stations that did not have competition is between `r round(comp[1,2],4) * -100` cents higher and `r round(comp[1,3],4) * 100` cents lower than the mean price at those that do have competition. Since the confidence interval does not strictly contain all positive or all negative values, we can conclude there is not consistent evidence that gas stations charge more if they do not have direct competition in sight.
+
+
+## **Theory B**
+```{r, fig.width=7, fig.height=3}
+gasprices_ggplot + geom_point(aes(x=Income, y=Price), color='blue') + geom_smooth(aes(x = Income, y = Price), method = "lm", se = FALSE, color = "red") + labs(y="Gas Prices per Gallon ($)",x="Median Household Income of Area ($)",title="Gas Station Prices per Gallon on April 3, 2016 vs. Median Household Income of the Area") + theme(plot.title = element_text(size=9.5))
+
+boot_income <- do(10000) * cor(resample(gasprices$Price), resample(gasprices$Income))
+
+lower = quantile(boot_income$cor, .025)
+upper = quantile(boot_income$cor, .975)
+ggplot(boot_income) + geom_histogram(aes(x=cor, fill = (cor >= lower & cor <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="R-value of the Sample", y="Count", title="10,000 Bootstrap Sample R-values of Price vs. Income")
+
+income <- confint(boot_income, level = 0.95)
+```
+The next claim we will look at is that the richer the area is, the higher the gas prices will be. After looking at the dotplot created from the data, the r value for the data is `r round(cor(gasprices$Price, gasprices$Income),4)`, which is a weak, positive correlation for the data. To further test it, a bootstrap sample was taken 10,000 times, and from that sampling, we are 95% confident that the mean r-value of the data is between `r round(income[1,2],4)` and `r round(income[1,3],4)`. Based on this, we can conclude that there is not sufficient evidence that the richer the area, the more expensive the gas is since the confidence interval spans from negative r-values to positive r-values.
+
+
+
+## **Theory C**
+```{r, fig.width=7, fig.height=3}
+gasprices_ggplot + geom_boxplot(aes(x=Price, y=Stoplight, fill=Stoplight)) + scale_y_discrete(labels = c("N" = "No", "Y" = "Yes")) + labs(x="Gas Prices per Gallon ($)",y="Gast Station At Stoplight?",title="Gas Prices on April 3, 2016 and Whether at Stoplight or Not") + theme(legend.position = "none", plot.title = element_text(size=12))
+
+boot_stop <- do(10000)*diffmean(Price ~ Stoplight, data=resample(gasprices))
+
+lower = quantile(boot_stop$diffmean, .025)
+upper = quantile(boot_stop$diffmean, .975)
+ggplot(boot_stop) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Mean Difference in Price ($)", y="Count", title="10,000 Bootstrap Samples of Mean Price Difference of Gas Stations that Were \nand Weren't at a Stoplight")
+
+stop <- confint(boot_stop, level = 0.95)
+```
+The next claim to look at is that gas stations at stoplights charge more than those not at a stoplight. After creating the boxplot above with the data, it appears that the mean price for gas stations that are at stoplights is higher than those that are not at stoplights. But to take into account uncertainty, a bootstrap sampling method of 10,000 samples was taken, and after computing it, we can be 95% confident that the mean price of gas stations at stoplights is between `r round(stop[1,3],4) * 100` cents lower and `r round(stop[1,2],4) * -100` cents higher than the mean price at gas stations that are not at a stoplight. Based off of this interval, we do not have sufficient evidence that gas stations at stoplights charge more because the interval spans across both negative and positive values, which does not give consistent evidence.
+
+
+## **Theory D**
+```{r, fig.width=7, fig.height=3}
+gasprices_ggplot + geom_boxplot(aes(x=Price, y=Highway, fill=Highway)) + scale_y_discrete(labels = c("N" = "No", "Y" = "Yes")) + labs(x="Gas Prices per Gallon ($)",y="Access From Highway Road?",title="Gas Prices on April 3, 2016 and Whether it had Access from Highway") + theme(legend.position = "none", plot.title = element_text(size=12))
+
+boot_highway <- do(10000)*diffmean(Price ~ Highway, data=resample(gasprices))
+
+lower = quantile(boot_highway$diffmean, .025)
+upper = quantile(boot_highway$diffmean, .975)
+ggplot(boot_highway) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Mean Difference in Price ($)", y="Count", title="10,000 Bootstrap Samples of Mean Price Difference of Gas Stations that Did \nand Didn't Have Direct Highway Access")
+
+highway <- confint(boot_highway, level = 0.95)
+```
+The next claim to evaluate is that gas stations with direct access to the highway charge more than those that do not. According to the boxplot made above with the data provided, it can be seen that the mean price for gas stations that did have access from highway was significantly higher than those that did not. But to double check, a bootstrapping sample of 10,000 resamples of the mean difference between the two, and from that, we are 95% confident that the mean price for gas stations with direct highway access is between `r round(highway[1,2],4) * 100` and `r round(highway[1,3],4) * 100` cents higher than the mean price for those that do not have direct highway access. So, since the confidence interval only contains positive values, or a positive mean difference value, we can conclude that there is sufficient evidence that gas stations with direct highway access do in fact charge more than those that do not have direct highway access.
+
+
+
+## **Theory E**
+```{r, fig.width=7, fig.height=3}
+
+for(i in 1:nrow(gasprices)){
+  if(gasprices$Brand[i] == "Shell"){
+    gasprices$Group[i] = "Shell"
+  }
+  else{
+    gasprices$Group[i] = "Non-Shell"
+  }
+}
+gasprices_ggplot <- ggplot(gasprices)
+
+gasprices_ggplot + geom_boxplot(aes(x=Price, y=Group, fill=Group)) + labs(x="Gas Prices per Gallon ($)",y="Brand of Gas Station",title="Gas Prices on April 3, 2016 Depending on Brand") + theme(legend.position = "none", plot.title = element_text(size=12))
+
+boot_brand <- do(10000)*diffmean(Price ~ Group, data=resample(gasprices))
+
+lower = quantile(boot_brand$diffmean, .025)
+upper = quantile(boot_brand$diffmean, .975)
+ggplot(boot_brand) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Mean Difference in Price ($)", y="Count", title="10,000 Bootstrap Samples of Mean Price Difference of Shell and non-Shell \nGas Stations")
+
+brand <- confint(boot_brand, level = 0.95)
+```
+The final claim to evaluate is that Shell gas stations charge more than all other non-Shell branded gas stations do. By looking at the boxplot above from the provided data, it seems that the mean price is slightly higher for Shell gas stations than non-Shell, but to account for uncertanties, we will perform another bootstrap sampling test, again with 10,000 resampled mean differences between Shell and non-Shell prices. As a result, we are 95% confident that the mean price for Shell gas stations is between `r round(brand[1,2],4) * -100` cents lower and `r round(brand[1,3],4) * 100` cents higher than the mean price for all non-Shell gas stations. Based on this, since the interval spans into both negative and positive values, or that the mean price for Shell can be both lower or higher than non-Shell mean in the interval, there is not sufficient evidence that Shell charges more than all other non-Shell brands.
+
+
+
+
+
+
+
+# **Problem 2**
+
+```{r}
+sclass <- read.csv("sclass.csv")
+
+```
+
+## **Part A**
+```{r, fig.width=7, fig.height=3}
+
+sclass_filtered <- filter(sclass, year == 2011, trim == "63 AMG")
+
+boot_miles <- do(10000)*mean(~mileage, data=resample(sclass_filtered))
+
+lower = quantile(boot_miles$mean, .025)
+upper = quantile(boot_miles$mean, .975)
+ggplot(boot_miles) + geom_histogram(aes(x=mean, fill = (mean >= lower & mean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Average Mileage",y="Count",title="10,000 Simulated Bootstrap Samples of Average Mileage of \n2011 S-Class 63 AMGs in the Used Car Market")
+
+miles_values <- confint(boot_miles, level = 0.95)
+```
+The average mileage of 2011 S-Class 63 AMGs that were hitting the used-car market when this data were collected is somewhere between `r round(miles_values[1,2],2)` miles and `r round(miles_values[1,3],2)` miles, with 95% confidence.
+
+
+
+
+## **Part B**
+```{r, fig.width=7, fig.height=3}
+
+sclass_subset <- filter(sclass, year == 2014, trim == "550")
+sclass_subset <- mutate(sclass_subset, isBlack=ifelse(color == "Black", "True", "False"))
+
+boot_color <- do(10000)*prop(~isBlack, data=resample(sclass_subset), success="True")
+
+lower = quantile(boot_color$prop_True, .025)
+upper = quantile(boot_color$prop_True, .975)
+ggplot(boot_color) + geom_histogram(aes(x=prop_True, fill = (prop_True >= lower & prop_True <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Proportion Painted Black",y="Count",title="10,000 Simulated Bootstrap Samples of Proportion of 2014 \nS-Class 550s that Were Painted Black")
+
+color_values <- confint(boot_color, level = 0.95)
+```
+The proportion of all 2014 S-Class 550s that were painted black is between `r round(color_values[1,2],4)` and `r round(color_values[1,3],4)`, with 95% confidence.
+
+
+
+
+
+
+
+
+# **Problem 3**
+
+```{r}
+nbc <- read.csv("nbc_pilotsurvey.csv")
+```
+
+## **Part A**
+```{r, fig.width=7, fig.height=3}
+
+nbc_filtered <- filter(nbc, Show == "Living with Ed")
+nbc_filtered <- rbind(nbc_filtered, filter(nbc, Show == "My Name is Earl"))
+
+boot_happy_diffmean <- do(10000)*diffmean(Q1_Happy ~ Show, data=resample(nbc_filtered))
+
+lower = quantile(boot_happy_diffmean$diffmean, .025)
+upper = quantile(boot_happy_diffmean$diffmean, .975)
+ggplot(boot_happy_diffmean) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + guides(fill = "none") + labs(x="Mean Difference in Happiness Ratings",y="Count",title="10,000 Bootstrap Samples of Mean Difference in Viewer's Mean Happiness \nRatings for Pilot Show of \"Living with Ed\" versus \"My Name is Earl\"") + theme(plot.title = element_text(size=11))
+
+happy <- confint(boot_happy_diffmean, level = 0.95)
+
+```
+
+We are trying to see whether the show "Living with Ed" or "My Name is Earl" got higher happiness ratings, and if one of the two consistently produces a higher happiness rating among viewers. To find this out, a bootstrap sampling method was done 10,000 times where the mean happiness rating of "Living with Ed" was subtracted from mean rating for "My Name is Earl" to get a mean difference. The graph above shows the distribution of the 10,000 simulated mean differences, and according to the graph, we are 95% confident that the mean difference in viewer happiness ratings between the two shows is between `r round(happy[1,2],4)` and `r round(happy[1,3],4)`, with a negative mean difference meaning "My Name is Earl" has a lower mean happiness rating that "Living with Ed." Based on this, we can see that "Living with Ed" typically has a higher mean happiness rating, but there is a portion of the samples inside the confidence interval that do have a higher happiness rating for "My Name is Earl." Since the interval spans in both the negative and positive values, there is not evidence that one show consistently produces a higher mean happiness rating.
+
+
+
+
+## **Part B**
+```{r, fig.width=7, fig.height=3}
+
+nbc_subset <- filter(nbc, Show == "The Biggest Loser")
+nbc_subset <- rbind(nbc_subset, filter(nbc, Show == "The Apprentice: Los Angeles"))
+
+boot_annoy_diffmean <- do(10000)*diffmean(Q1_Annoyed ~ Show, data=resample(nbc_subset))
+
+lower = quantile(boot_annoy_diffmean$diffmean, .025)
+upper = quantile(boot_annoy_diffmean$diffmean, .975)
+ggplot(boot_annoy_diffmean) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + guides(fill = "none") + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + labs(x="Mean Difference in Annoyed Ratings",y="Count",title="10,000 Bootstrap Samples of Mean Difference in Viewer's Mean Annoyed Ratings \nfor Pilot Show of \"The Biggest Loser\" versus \"The Apprentice: Los Angeles\"") + theme(plot.title = element_text(size=10))
+
+annoy <- confint(boot_annoy_diffmean, level = 0.95)
+```
+
+We are trying to see which show, "The Biggest Loser" or "The Apprentice: Los Angeles," made viewers more annoyed, and if one of the two consistently produces a higher annoyed response among viewers. To find this out, a bootstrap sampling method was done 10,000 times where the mean annoyed rating of "The Apprentice: Los Angeles" was subtracted from mean rating for "The Biggest Loser" to get a mean difference. The graph above shows the distribution of the 10,000 simulated mean differences, and according to the graph, we are 95% confident that the mean difference in viewer happiness ratings between the two shows is between `r round(annoy[1,2],4)` and `r round(annoy[1,3],4)`, with a negative mean difference meaning "The Biggest Loser" has a lower mean annoyed rating that "The Apprentice: Los Angeles." Since the interval includes only negative mean differences, we can conclude there is evidence to show that the show "The Apprentice: Los Angeles" consistently produces a higher mean annoyed rating response than "The Biggest Loser" does.
+
+
+
+## **Part C**
+```{r, fig.width=7, fig.height=3}
+
+nbc_stars <- filter(nbc, Show == "Dancing with the Stars")
+
+nbc_stars <- mutate(nbc_stars, fourOrGreater=ifelse(Q2_Confusing >= 4, "True", "False"))
+
+boot_confused <- do(10000)*prop(~fourOrGreater, data=resample(nbc_stars), success="True")
+
+lower = quantile(boot_confused$prop_True, .025)
+upper = quantile(boot_confused$prop_True, .975)
+ggplot(boot_confused) + geom_histogram(aes(x=prop_True, fill = (prop_True >= lower & prop_True <= upper)), color = 'black') + labs(x="Proportion of Confused Watchers",y="Count",title="10,000 Bootstrap Samples of Proportion of TV Watchers Who Said \nThey Were Confused About the Show: \"Dancing With the Stars\"") + guides(fill = "none") + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + theme(plot.title = element_text(size=12))
+
+confused <- confint(boot_confused, level = 0.95)
+```
+
+We are trying to see what proportion of American TV watchers we expect to give a rating of a 4 or 5 (meaning they said they Agreed(4) or Strongly Agreed(5) ) that "Dancing with the Stars" was a confusing show. To find this out, a bootstrap sample of 181 responses were taken and the proportion of how many responses in there were a 4 or 5 was calculated. This was repeated 10,000 times, resulting in the graph above. Based on this, we are 95% confident that the proportion of all American TV watchers who are confused by the show "Dancing with the Stars" is between `r round(confused[1,2],4)` and `r round(confused[1,3],4)`. So in conclusion, there are not a lot of watchers confused, as the amount confused is only between `r round(confused[1,2],4) * 100`% of viewers to `r round(confused[1,3],4) * 100`% of viewers, which is not a lot when looking at total TV watchers across America.
+
+
+
+
+
+
+
+
+# **Problem 4**
+
+```{r}
+ebay <- read.csv("ebay.csv")
+
+```
+
+```{r, fig.width=7, fig.height=3}
+
+ebay <- mutate(ebay, revenue_ratio = (rev_after / rev_before))
+
+boot_ebay <- do(10000)*diffmean(revenue_ratio ~ adwords_pause, data=resample(ebay))
+
+lower = quantile(boot_ebay$diffmean, .025)
+upper = quantile(boot_ebay$diffmean, .975)
+ggplot(boot_ebay) + geom_histogram(aes(x=diffmean, fill = (diffmean >= lower & diffmean <= upper)), color = 'black') + scale_fill_manual(values = c("FALSE" = "gray", "TRUE" = "blue")) + labs(x="Mean Difference in Revenue Ratio",y="Count",title="10,000 Bootstrap Samples of Mean Difference in Revenue Ratio of EBay DMAs that \nPaused Advertising on Google AdWords versus EBay DMAs that Continued Advertising") + theme(plot.title = element_text(size=10)) + guides(fill = "none")
+
+ebay_values <- confint(boot_ebay, level = 0.95)
+```
+
+We are trying to see whether paid search advertising on Google creates extra revenue for EBay or not. To figure this out, EBay turned off paid search in 70 of their 210 designated market areas (DMAs), and kept the other DMAs as is. So, we found the ratio of each DMA's revenue after the experiment started to before the experiment started. Then, a bootstrap sample was taken to find the mean difference in revenue ratios for DMAs that stopped paying for ads and DMAs that kept paying. This was repeated 10,000 times, resulting in the graph above, where a negative mean difference means that the mean revenue ratio for DMAs that stopped paying was less than mean for DMAs that continued paying. According to the results, we are 95% confident that the mean difference in revenue ratio for DMAs that stopped paying and DMAs that continued paying for paid search ads on Google was between `r round(ebay_values[1,2],4)` and `r round(ebay_values[1,3],4)`. In conclusion,the mean revenue ratio was somewhere between `r round(ebay_values[1,3],4) * -1` to `r round(ebay_values[1,2],4) * -1` higher for the DMAs that kept paying for ads, meaning paid search ads on Google do create extra revenue for EBay.
+
+
