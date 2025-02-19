@@ -1,0 +1,191 @@
+---
+title: "Homework 4"
+author: "Jayden Polansky - jbp2839"
+date: https://github.com/jaydenpolansky/SDS315.git
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, echo=FALSE, message=FALSE, options(scipen = 999), tidy.opts=list(width.cutoff=60))
+```
+
+---
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(knitr)
+library(forcats)
+library(tinytex)
+library(mosaic)
+library(kableExtra)
+
+```
+
+
+# **Problem 1 - Iron Bank**
+
+```{r, fig.width=7, fig.height=4}
+sim_flagged = do(10000) * nflip(n=2021, prob=.024)
+
+ggplot(sim_flagged) + geom_histogram(aes(x=nflip, fill = (nflip >= 70)), binwidth = 1) + scale_fill_manual(values = c("TRUE" = "blue")) + guides(fill = "none") + theme_minimal() + labs(x="Number of Flagged Trades", y="Count", title="10,000 Simulations of How Many Trades Were Flagged by SEC's Detection \nAlgorithm Out of 2021 Trades (Assuming 2.4% Baseline Rate)")
+```
+
+The Securities and Exchange Commission (SEC) is investigating whether trades made by employees at Iron Bank are getting flagged at a rate higher than the baseline (normal) rate of 2.4%. The null hypothesis is that the proportion of flagged trades at Iron Bank is equal to 2.4%. The test statistic used is the number of flagged trades over 2021 total trades, with an observed statistic of 70 trades. The histogram above shows the distribution of 10,000 simulations, assuming the base probability is 2.4%. Based on the simulation, the p-value for the graph above is `r sum(sim_flagged >= 70) / 10000`. This p-value is very small, suggesting it is highly unlikely under normal conditions to get 70 flagged trades, meaning there is strong statistical evidence that the employees at Iron Bank should be looked into for violating federal trading laws.
+
+
+
+
+
+
+
+\newpage
+
+
+
+
+
+# **Problem 2 - Health Inspections**
+
+```{r, fig.width=7, fig.height=4}
+sim_health = do(10000) * nflip(n=50, prob = .03)
+
+ggplot(sim_health) + geom_histogram(aes(x=nflip, fill = (nflip >= 8)), binwidth = 1, center=.5) + scale_x_continuous(breaks=seq(0, 9, by = 1), limits = c(0, 9)) + theme_minimal() + scale_fill_manual(values = c("TRUE" = "blue")) + guides(fill = "none") + labs(x="Number of Health Code Violations", y="Count", title="10,000 Simulations of Expected Health Code Violations Over 50 Inspections \n(Assuming 3% Baseline Rate)")
+```
+
+The local health department is investigating if Gourmet Bites' rate of health code violations is significantly higher than the citywide average of 3%. The null hypothesis is that on average all the restaurants in the city are cited health code violations at the same 3% baseline rate. The histogram above shows the distribution of 10,000 simulations, assuming the probability of getting health code violations across 50 visits is the 3% baseline rate. Based on the simulation, the p-value for the graph is `r sum(sim_health >= 8) / 10000`. This p-value is very small, suggesting there is strong statistical evidence that the Gourmet Bites 8 health code violations is significantly higher than the citywide average and should be looked into further by the local health department.
+
+
+
+
+
+
+\newpage
+
+
+# **Problem 3 - Evaluating Jury Selection for Bias**
+
+```{r, fig.width=7, fig.height=4}
+probs = c(.3, .25, .2, .15, .1)
+probs_df = data.frame(Group = c("Group 1", "Group 2", "Group 3", "Group 4", "Group 5"), Percentage = c("30%", "25%", "20%", "15%", "10%"))
+
+
+expected <- probs * 240
+observed <- c(85, 56, 59, 27, 13)
+observed_df = data.frame(Group = c("Group 1", "Group 2", "Group 3", "Group 4", "Group 5"), Count = observed)
+df = length(observed) - 1
+
+T = round(sum((observed - expected)^2 / expected),3)
+
+p_value <- round(1 - pchisq(T, df), 4)
+```
+
+Demographic breakdown of county's eligible jury pool:
+```{r}
+kable(probs_df)
+```
+
+Corresponding group counts for the empaneled jurors in 20 trials overseen by judge in question:
+```{r}
+kable(probs_df)
+```
+
+The hypothesis test we will use to determine if there is a significant difference in the distribution of jurors empaneled by this judge compared to the county's population proportions is the chi-squared goodness of fit test. First, we take the expected distribution of each racial/ethnic group and multiply it by the total number of jurors (240) to find the expected number of jurors in each category, which is the null hypothesis. Then, we find the chi-squared statistic T by summing up the squared difference in how many jurors were expected from how many were actually observed, and divide that by the number of expected in the category. Finally, we calculate the p-value and find that it is `r p_value`, and since that p-value is small (< 0.05), we can conclude that we have statistical evidence to say there is systematic bias in the jury selection. It could be due to the fact that there are various outside factors, including response issues with the jury summoning, under representation of some racial/ethnic groups in that area, and more. To look further into it, you could look at historical jury selections for this area and see if past juries have been similar or different to the current one, as well as looking at who attorneys striked out and see if it had any correlation with race/ethnicity. 
+
+
+
+
+
+\newpage
+
+
+
+
+
+
+# **Problem 4 - LLM Watermarking**
+
+
+
+## **Part A**
+```{r, fig.width=7, fig.height=4}
+letters_table <- read.csv("letter_frequencies.csv")
+lines <- readLines("brown_sentences.txt")
+
+clean_lines = gsub("[^A-Za-z]", "", lines)
+clean_lines = toupper(clean_lines)
+
+calc_chi_sq = function(sentence, freq_table){
+  observed = table(factor(strsplit(sentence, "")[[1]], levels = freq_table$Letter))
+  total_letters = sum(observed)
+  expected = total_letters * freq_table$Probability
+  expected[expected == 0] = 1
+  T_value = sum((observed - expected)^2 / expected)
+  return(T_value)
+}
+
+chi_sq_values <- as.numeric(sapply(clean_lines, calc_chi_sq, freq_table = letters_table))
+chi_df <- as.data.frame(chi_sq_values)
+
+ggplot(chi_df) + geom_histogram(aes(x=chi_sq_values)) + labs(x="Chi-Squared Values",y="Count",title="Null Distribution of Chi-Squared Statistic Across English Sentences")
+```
+
+
+
+
+
+## **Part B**
+```{r, fig.width=7, fig.height=4}
+
+sentences <- c(
+  "She opened the book and started to read the first chapter, eagerly anticipating what might come next.",
+  "Despite the heavy rain, they decided to go for a long walk in the park, crossing the main avenue by the fountain in the center.",
+  "The museum’s new exhibit features ancient artifacts from various civilizations around the world.",
+  "He carefully examined the document, looking for any clues that might help solve the mystery.",
+  "The students gathered in the auditorium to listen to the guest speaker’s inspiring lecture.",
+  "Feeling vexed after an arduous and zany day at work, she hoped for a peaceful and quiet evening at home, cozying up after a quick dinner with some TV, or maybe a book on her upcoming visit to Auckland.",
+  "The chef demonstrated how to prepare a delicious meal using only locally sourced ingredients, focusing mainly on some excellent dinner recipes from Spain.",
+  "They watched the sunset from the hilltop, marveling at the beautiful array of colors in the sky.",
+  "The committee reviewed the proposal and provided many points of useful feedback to improve the project’s effectiveness.",
+  "Despite the challenges faced during the project, the team worked tirelessly to ensure its successful completion, resulting in a product that exceeded everyone’s expectations."
+)
+```
+
+Here are the 10 sentences we will be checking: 
+```{r}
+sentences
+```
+
+
+
+
+```{r}
+df <- data.frame(Sentence = c(1:10))
+
+for(i in 1:length(sentences)){
+  df$chi_square_value[i] <- round(calc_chi_sq(sentences[i], letters_table),3)
+  df$p_value[i] <- round(sum(chi_df >= df$chi_square_value[i]) / nrow(chi_df),3)
+}
+```
+
+\newpage
+
+After running the chi-squared goodness of fit test, here are the resulting chi-squared values and p-values:
+```{r}
+kable(df)
+```
+
+To make it easier to see which sentence has been produced by an LLM (i.e. which sentence is least similar to standard distribution of characters in English sentences), you can graph the p-values against each other and see which is significantly lower than the rest:
+
+```{r, fig.width=7, fig.height=4}
+plot(df$p_value, log='y',xlab="Sentence Number",ylab="P-value")
+```
+So according to the graph above, the index 6 has the smallest p-value by far, meaning sentence 6, "`r sentences[6]`", is the one produced by a LLM, as it is the most unusual compared to other normal English sentences. 
+
+
+
+
+
+
