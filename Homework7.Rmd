@@ -1,0 +1,232 @@
+---
+title: "Homework 7"
+author: "Jayden Polansky - jbp2839"
+date: https://github.com/jaydenpolansky/SDS315.git
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, echo=FALSE, message=FALSE, options(scipen = 999), tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(mosaic)
+library(MatchIt)
+library(kableExtra)
+```
+
+# **Problem 1 - Armfolding**
+
+## **Part A**
+
+```{r}
+armfold <- read.csv("armfold.csv")
+
+males <- as.numeric(table(armfold$Sex)[2])
+females <- as.numeric(table(armfold$Sex)[1])
+
+male_prop <- as.numeric(mean(armfold$LonR_fold ~ armfold$Sex)[2])
+female_prop <- as.numeric(mean(armfold$LonR_fold ~ armfold$Sex)[1])
+```
+
+There are `r males` male students and `r females` female students in this dataset. The sample proportion of males who folded their left arm on top is `r round(male_prop,3)` and the sample proportion of females who folded their left arm on top is `r round(female_prop,3)`.
+
+## **Part B**
+
+```{r}
+obs_diff <- male_prop - female_prop
+```
+
+The observed difference in proportions between males and females (males - females) is `r round(obs_diff, 3)`.
+
+## **Part C**
+
+```{r}
+prop_result <- prop.test(LonR_fold ~ Sex, data=armfold)
+prop_result$conf.int
+
+se_prop = sqrt( (male_prop * (1 - male_prop) / males) + (female_prop * (1 - female_prop) / females) )
+lower <- obs_diff - 2 * se_prop #hand calculated lower bound
+upper <- obs_diff + 2 * se_prop #hand calculated upper bound
+
+```
+
+After running a difference of proportions test, we are 95% confident that the difference in proportions of males that crossed their left arm over their right and females that crossed their left arm over their right is between `r round(prop_result$conf.int[1],3) * -1` lower for males than females and `r round(prop_result$conf.int[2],3)` higher for males than females.
+
+This can also be calculated by hand, using the formula: ($\hat{p}$~1~ - $\hat{p}$~2~) ± z\* $\sqrt{\hat{p}_1 (1 - \hat{p}_1)/n_1 + \hat{p}_2 (1 - \hat{p}_2)/n_2}$
+
+The values that are plugged into the formula are as follows:
+
+-   $\hat{p}$~1~: the sample proportion of males that folded their arms left over right (`r round(male_prop,3)`)
+-   $\hat{p}$~2~: the sample proportion of females that folded their arms left over right (`r round(female_prop,3)`)
+-   n~1~: the total number of males in the sample (`r males`)
+-   n~2~: the total number of females in the sample (`r females`)
+
+The z* value chosen was 2, because going 2 standard errors away from the center covers about 95% of the values, which is the confidence interval that we wanted to test for to be 95% sure about the result.
+
+When calculating the 95% confidence interval by hand, we found that the interval is (`r round(lower,3)`, `r round(upper,3)`), which is very close to the built-in function interval.
+
+## **Part D**
+If we were to sample the entire population that these undergraduate students come from, then we would expect that the true difference in proportion of males and females who cross their left arm over their right arm would be between -0.093 and 0.190, with not enough evidence to conlcude whether sex makes a significant difference in this action.
+
+## **Part E**
+The standard error calculated above was `r round(se_prop, 3)`, and it represents the variability of the difference in proportions between males and females over many different samples if the study was repeated with different random samples from the population. So in this case, a standard error of `r round(se_prop, 3)` means if repeated with other random samples, the difference in proportions (male - female) would vary by about `r round(se_prop, 3)`.
+
+## **Part F**
+In this context, sampling distribution refers to the distribution of difference of proportions (males - females who put their left arm on top) if you took many random samples of the same size from the population. From sample to sample, the difference in sample proportion is what varies, whereas the sample size (number of males and females) stays the same.
+
+## **Part G**
+The Central Limit Theorem (CLT) justifies the use of a normal distribution in this case to approximate the difference in sample proportions because the CLT explains that if enough random samples are taken from a population, then the sampling distribution will follow a normal shape. In this case, there was a large enough number of individuals surveyed that the CLT applies and a normal distribution can be used.
+
+## **Part H**
+If the 95% confidence interval was [-0.01, 0.30], my conclusion would be that since the interval contains 0, it is plausible that there is no sex difference in arm folding. But at the same time, there are positive difference in proportion values up to 0.30, suggesting that there might actually be a difference based on sex. So in the end, you cannot conclude one way or the other, and more data would need to be taken to determine an answer.
+
+## **Part I**
+If this experiment is repeated many time with different random samples of university students, the confidence interval would be different across the various samples because the difference in sample proportions wouldn't be the exact same due to random variation, so there would be variation in the confidence intervals. Additionally, 95% of the collection of confidence intervals made would contain the true difference in proportions.
+
+\newpage
+
+# **Problem 2 - Get out the vote**
+
+## **Part A**
+
+```{r}
+turnout <- read.csv("turnout.csv")
+
+results = aggregate(voted1998 ~ GOTV_call, mean, data = turnout)
+
+gotv_voted <- results[2,2]
+notgotv_voted <- results[1,2]
+
+prop_test <- prop.test(voted1998 ~ GOTV_call, data=turnout)
+prop_test$conf.int
+```
+The proportion of those receiving a GOTV call who did vote in 1998 was `r round(gotv_voted,3)`, whereas the proportion of those not receiving a GOTV call who did vote in 1998 was `r round(notgotv_voted,3)`. We are 95% confident that the true difference in proportions for those who received a GOTV call that voted in 1998 and those that did not receive a GOTV call voted in 1998 (got called - not called) is between `r round(prop_test$conf.int[1],3)` and `r round(prop_test$conf.int[2],3)`.
+
+## **Part B**
+
+We want to see if the voted1996, AGE, and MAJORPTY variables are confounders or not, so we will  see if they made people more likely to receive a GOTV call or not and more likely to make people vote in 1998 or not:
+
+------------------------------------------------------------------------
+
+**voted1996 vs GOTV_call:**
+```{r}
+go1996 <- tapply(turnout$GOTV_call, turnout$voted1996, mean)
+go1996_CI <- prop.test(GOTV_call ~ voted1996, data=turnout)$conf.int
+go1996
+go1996_CI
+```
+After examining the relationship between these two variables, it can be seen that `r round(as.numeric(go1996[1]),5) * 100`% of people who did not vote in 1996 received a GOTV call, whereas `r round(as.numeric(go1996[2]),5) * 100`% of people who did vote in 1996 received a GOTV call. After running a confidence interval, we are 95% confidence that difference in proportion for those who got a GOTV call that did versus did not vote in 1996 is between `r round(go1996_CI[1], 5) * 100`% and `r round(go1996_CI[2], 5) * 100`% higher for those that did vote in 1996, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+**AGE vs GOTV_call:**
+```{r}
+goage <- tapply(turnout$AGE, turnout$GOTV_call, mean)
+goage_CI <- t.test(AGE ~ GOTV_call, data = turnout)$conf.int
+goage
+goage_CI
+```
+After examining the relationship between these two variables, it can be seen that the mean age of those that did not receive a GOTV call is `r round(as.numeric(goage[1]),2)` years old, whereas the mean age of those that did receive one is higher, at `r round(as.numeric(goage[2]),2)` years old. After running a confidence interval, we are 95% confident that the mean difference in age (those not receiving GOTV call - those who did) is between `r round(goage_CI[2],2)` and `r round(goage_CI[1],2)` years, meaning those who did not receive a call have a mean age that is about `r round(goage_CI[2],2) * -1` to `r round(goage_CI[1],2) * -1` years younger than those who did get a GOTV call, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+**MAJORPTY vs GOTV_call:**
+```{r}
+gomajor <- tapply(turnout$GOTV_call, turnout$MAJORPTY, mean)
+gomajor_CI <- prop.test(GOTV_call ~ MAJORPTY, data=turnout)$conf.int
+gomajor
+gomajor_CI
+```
+After examining the relationship between these two variables, it can be seen that `r round(as.numeric(gomajor[1]),5) * 100`% of people who are not registered with either major US political party received a GOTV call, whereas `r round(as.numeric(gomajor[2]),5) * 100`% of people who are registered received a GOTV call. After running a confidence interval, we are 95% confidence that difference in proportion for those who got a GOTV call that are and are not registered with either major political party is between `r round(gomajor_CI[1], 5) * 100`% and `r round(gomajor_CI[2], 5) * 100`% higher for those that are registered, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+**voted1996 vs voted1998:**
+```{r}
+vote <- tapply(turnout$voted1998, turnout$voted1996, mean)
+vote_CI <- prop.test(voted1998 ~ voted1996, data=turnout)$conf.int
+vote
+vote_CI
+```
+After examining the relationship between these two variables, it can be seen that `r round(as.numeric(vote[1]),5) * 100`% of people who did not vote in 1996 did vote in 1998, whereas `r round(as.numeric(vote[2]),5) * 100`% of people who did vote in 1996 did also vote in 1998. After running a confidence interval, we are 95% confidence that difference in proportion for those who did vote in 1998 that did versus did not vote in 1996 is between `r round(vote_CI[1], 5) * 100`% and `r round(vote_CI[2], 5) * 100`% higher for those that did vote in 1996, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+**AGE vs voted1998:**
+```{r}
+voteage <- tapply(turnout$AGE, turnout$voted1998, mean)
+voteage_CI <- t.test(AGE ~ voted1998, data = turnout)$conf.int
+voteage
+voteage_CI
+```
+After examining the relationship between these two variables, it can be seen that the mean age of those that did not vote in 1998 is `r round(as.numeric(voteage[1]),2)` years old, whereas the mean age of those that did vote in 1998 is higher, at `r round(as.numeric(voteage[2]),2)` years old. After running a confidence interval, we are 95% confident that the mean difference in age (those not voting in 1998 - those who did) is between `r round(voteage_CI[2],2)` and `r round(voteage_CI[1],2)` years, meaning those who did not vote in 1998 have a mean age that is about `r round(voteage_CI[2],2) * -1` to `r round(voteage_CI[1],2) * -1` years younger than those who did vote in 1998, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+**MAJORPTY vs voted1998:**
+```{r}
+votemajor <- tapply(turnout$voted1998, turnout$MAJORPTY, mean)
+votemajor_CI <- prop.test(voted1998 ~ MAJORPTY, data=turnout)$conf.int
+votemajor
+votemajor_CI
+```
+After examining the relationship between these two variables, it can be seen that `r round(as.numeric(votemajor[1]),5) * 100`% of people who are not registered to one of the two main US political parties did vote in 1998, whereas `r round(as.numeric(votemajor[2]),5) * 100`% of people who are registered to one of the political parties did vote in 1998. After running a confidence interval, we are 95% confidence that difference in proportion for those who did vote in 1998 that are and are not registered to one of the two parties is between `r round(votemajor_CI[1], 5) * 100`% and `r round(votemajor_CI[2], 5) * 100`% higher for those that are registered to one, meaning there is significant evidence of a correlation between the two variables.
+
+------------------------------------------------------------------------
+
+
+## **Part C**
+
+```{r}
+turnout_match = matchit(GOTV_call ~ AGE + factor(MAJORPTY) + factor(voted1996), data=turnout, ratio=5)
+
+turnout_matched = match.data(turnout_match)
+```
+
+After matching with voted1996, AGE, and MAJORPTY as the "matched" variables, here is what the matched data looks like as a table:
+```{r}
+kbl(summary(turnout_match)$sum.matched)
+```
+
+We can see from the table that the "Means Treated" and "Means Control" values for AGE, MAJORPTY, and voted1996 are essentially the same, showing the matching worked. Additionally we can perform confidence intervals to see if the three variables are confounders anymore:
+
+**GOTV_call vs AGE (with matched data)**
+```{r}
+t.test(AGE ~ GOTV_call, data = turnout_matched)$conf.int
+```
+
+**GOTV_call vs voted1996 (with matched data)**
+```{r}
+prop.test(GOTV_call ~ voted1996, data = turnout_matched)$conf.int
+```
+
+**GOTV_call vs MAJORPTY (with matched data)**
+```{r}
+prop.test(GOTV_call ~ MAJORPTY, data = turnout_matched)$conf.int
+```
+
+It can be seen that we are 95% confident that 0 is contained in all of the confidence intervals above, proving that since the data was matched, the three variables are not confounders anymore.
+
+
+
+Now we can repeat the analysis from Part A, except we use the matched data this time:
+
+```{r}
+
+results = aggregate(voted1998 ~ GOTV_call, mean, data = turnout_matched)
+
+matched_gotv_voted <- results[2,2]
+matched_notgotv_voted <- results[1,2]
+
+matched_prop_test <- prop.test(voted1998 ~ GOTV_call, data=turnout_matched)
+matched_prop_test$conf.int
+```
+Using the matched data, proportion of those receiving a GOTV call who did vote in 1998 was `r round(matched_gotv_voted,3)`, whereas the proportion of those not receiving a GOTV call who did vote in 1998 was `r round(matched_notgotv_voted,3)`. After running a confidence interval, we are 95% confident that the true difference in proportions for those who received a GOTV call that voted in 1998 and those that did not receive a GOTV call voted in 1998 (got called - not called) using the matched data is between `r round(matched_prop_test$conf.int[1],3)` and `r round(matched_prop_test$conf.int[2],3)`, meaning that when we used the matched data, there is evidence that receiving a GOTV call does increase the likelihood of voting in the 1998 election.
+
