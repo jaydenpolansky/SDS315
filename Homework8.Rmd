@@ -1,0 +1,157 @@
+---
+title: "Homework 8"
+author: "Jayden Polansky - jbp2839"
+date: https://github.com/jaydenpolansky/SDS315.git
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r global_options, echo=FALSE}
+knitr::opts_chunk$set(fig.height=3, fig.width=4, warning=FALSE, tidy=TRUE, echo=FALSE, message=FALSE, options(scipen = 999), tidy.opts=list(width.cutoff=60))
+```
+
+------------------------------------------------------------------------
+
+```{r}
+library(mosaic)
+library(tidyverse)
+library(ggplot2)
+```
+
+# **Problem 1 - Regression Warm Up**
+
+```{r, fig.width=5}
+creatinine <- read.csv("creatinine.csv")
+
+creatine_lm = lm(creatclear ~ age, data = creatinine)
+
+ggplot(creatine_lm, aes(x=age, y=creatclear)) + geom_point() + geom_smooth(method = "lm", se=FALSE) + labs(x="Age", y="Creatine Clearance Rate (mL/min)",title="Creatine Clearance Rate versus Age") + theme(plot.title = element_text(hjust = 0.5))
+
+coef(creatine_lm)
+```
+
+## **Part A**
+
+```{r}
+expected_55 <- round((as.numeric(coef(creatine_lm)[1]) + as.numeric(coef(creatine_lm)[2]) * 55),3)
+```
+
+When we plot the data and find a line of best fit using the linear regression model, we can come up with the equation to determine what creatine clearance rate (CCR) we expect for a certain age:
+
+CCR = 147.813 - 0.6198(age), so for a 55-year-old, we would expect their CCR to be 147.813 - 0.6198(55) = `r expected_55` mL/minute.
+
+## **Part B**
+
+For every year someone gets older, their creatine clearance rate goes down by 0.6198 mL/minute per year. This is determined by the slope of the line of best fit for the data above, meaning the line has a slope of -0.6198, which is where the number for change in CCR with age comes from.
+
+## **Part C**
+
+```{r}
+expected_40 <- round((as.numeric(coef(creatine_lm)[1]) + as.numeric(coef(creatine_lm)[2]) * 40),3)
+expected_60 <- round((as.numeric(coef(creatine_lm)[1]) + as.numeric(coef(creatine_lm)[2]) * 60),3)
+resid_40 <- 135 - expected_40
+resid_60 <- 112 - expected_60
+```
+
+Expected CCR for 40-year-old: 147.813 - 0.6198(40) = `r expected_40`.
+
+Expected CCR for 60-year-old: 147.813 - 0.6198(60) = `r expected_60`.
+
+(Residual = Actual - Expected)
+
+The residual for 40-year-old with actual rate of 135: 135 - `r expected_40` = `r resid_40`
+
+The residual for 60-year-old with actual rate of 112: 112 - `r expected_60` = `r resid_60`
+
+------------------------------------------------------------------------
+
+When looking at whose CCR is healthier (higher) for their age, it is determined by who has a higher residual, because a higher residual means they are higher above the line of best fit, so their CCR is healthier than what is predicted for their age. So after doing the calculations, the 40-year-old has a healthier CCR than the 60-year-old because their residual is at `r resid_40`, which is much greater than the 60-year-old's residual of `r resid_60`.
+
+\newpage
+
+# **Problem 2 - Modeling Disease Growth**
+
+```{r}
+covid <- read.csv("covid.csv")
+```
+
+## **1. Italy**
+
+```{r, fig.width=5.5, fig.height=2.5}
+italy_covid <- covid[covid$country=="Italy",]
+
+italy_lm <- lm(log(deaths) ~ days_since_first_death, data=italy_covid)
+
+ggplot(italy_covid, aes(x=days_since_first_death, y=log(deaths))) + geom_point() + geom_smooth(method = "lm", se=FALSE) + labs(x="Days Since First Italy Covid Death", y="Italy Covid Deaths (log scale, base e)", title="Covid Deaths in Italy versus Days Since First Covid Death in Italy On Log Scale") + theme(plot.title = element_text(size = 9), axis.title.y = element_text(size = 10))
+coef(italy_lm)
+
+boot_italy <- do(10000)*lm(log(deaths) ~ days_since_first_death, data=resample(italy_covid))
+italy_CI <- confint(boot_italy, level=0.95) %>% filter(name == "days_since_first_death")
+
+italy_dt_boot <- do(10000)*(70 / (as.numeric(coef(lm(log(deaths) ~ days_since_first_death, data=resample(italy_covid)))[2])*100))
+italy_dt_CI <- confint(italy_dt_boot, level=0.95)
+
+```
+
+Since the graph above was done on a log (base e) scale to make it linear, the slope of the fitted line above is the growth rate for Italy.
+
+So, the estimated growth rate for Italy according to the graph above is `r round(as.numeric(coef(italy_lm)[2]),3)`, meaning the log of deaths increases by 0.183 per day. To verify, a 95% bootstrapped confidence interval was run for the Italy growth rate, and after bootstrapping, we are 95% confident that the true growth rate for Italy is between `r round(as.numeric(italy_CI[2]),3)` and `r round(as.numeric(italy_CI[3]),3)` log deaths per day.
+
+The doubling time is calculated by using 70/rate(as a %), so the estimated doubling time for Italy is 70/18.3 = `r round(70/(as.numeric(coef(italy_lm)[2] * 100)),1)` days. Again, a 95% bootstrapped confidence interval was but now for the doubling time. After bootstrapping, we are 95% confident that the true doubling time for Italy is between `r round(as.numeric(italy_dt_CI[2]),1)` and `r round(as.numeric(italy_dt_CI[3]),1)` days.
+
+## **2. Spain**
+
+```{r, fig.width=5.5, fig.height=2.5}
+spain_covid <- covid[covid$country=="Spain",]
+
+spain_lm <- lm(log(deaths) ~ days_since_first_death, data=spain_covid)
+
+ggplot(spain_covid, aes(x=days_since_first_death, y=log(deaths))) + geom_point() + geom_smooth(method = "lm", se=FALSE) + labs(x="Days Since First Spain Covid Death", y="Spain Covid Deaths (log scale, base e)", title="Covid Deaths in Spain versus Days Since First Covid Death in Spain On Log Scale") + theme(plot.title = element_text(size = 9), axis.title.y = element_text(size = 9))
+coef(spain_lm)
+
+boot_spain <- do(10000)*lm(log(deaths) ~ days_since_first_death, data=resample(spain_covid))
+spain_CI <- confint(boot_spain, level=0.95) %>% filter(name == "days_since_first_death")
+
+spain_dt_boot <- do(10000)*(70 / (as.numeric(coef(lm(log(deaths) ~ days_since_first_death, data=resample(spain_covid)))[2])*100))
+spain_dt_CI <- confint(spain_dt_boot, level=0.95)
+```
+
+Since the graph above for Spain was also done on a log (base e) scale to make it linear, the slope of the fitted line above is the growth rate again.
+
+So, the estimated growth rate for Spain according to the graph above is `r round(as.numeric(coef(spain_lm)[2]),3)`, meaning the log of deaths increases by 0.276 per day. To verify, a 95% bootstrapped confidence interval was run for the Italy growth rate, and after bootstrapping, we are 95% confident that the true growth rate for Italy is between `r round(as.numeric(spain_CI[2]),3)` and `r round(as.numeric(spain_CI[3]),3)` log deaths per day.
+
+The doubling time is calculated by using 70/rate(as a %), so the estimated doubling time for Italy is 70/18.3 = `r round(70/(as.numeric(coef(spain_lm)[2] * 100)),1)` days. Again, a 95% bootstrapped confidence interval was but now for the doubling time. After bootstrapping, we are 95% confident that the true doubling time for Italy is between `r round(as.numeric(spain_dt_CI[2]),1)` and `r round(as.numeric(spain_dt_CI[3]),1)` days.
+
+## **3. Covid Deaths Over Time**
+
+```{r, fig.width=5.5, fig.height=3}
+ggplot(covid, aes(x=days_since_first_death, y=deaths, color=country)) + geom_line(size=1) + labs(title = "Covid Deaths Over Time in Italy and Spain", y = "Deaths", x = "Days Since First Death")
+```
+
+\newpage
+
+# **Problem 3 - Price Elasticity of Demand**
+
+```{r, fig.width=4.5, fig.height=3}
+milk <- read.csv("milk.csv")
+
+ggplot(milk, aes(x=log(price), y=log(sales))) + geom_point() + geom_smooth(method="lm", se=FALSE) + labs(x="Price of Milk (on log scale, base e)", y="Sales of Milk (on log scale, base e)", title="Sales of Milk on Log Scale versus Price of Milk on Log Scale") + theme(plot.title = element_text(size = 10))
+
+
+milk_coef <- lm(log(sales) ~ log(price), data=milk)
+
+coef(milk_coef)
+elasticity <- round(as.numeric(coef(milk_coef)[2]),3)
+
+milk_boot <- do(10000)*lm(log(sales) ~ log(price), data=resample(milk))
+milk_CI <- confint(milk_boot) %>% filter(name == "log.price.")
+milk_lower <- round(as.numeric(milk_CI[2]),3)
+milk_upper <- round(as.numeric(milk_CI[3]),3)
+```
+
+First, in order to find the estimated price elasticity of demand, the power-law model $Q = K P^{\beta}$ was used (where P is price, Q is quantity demand, and ${\beta}$ is price elasticity of demand) which is then linearized by taking log (base e) to form log(Q) = log(K) + ${\beta}$log(P). Then, a linear regression model was used for log(sales) on log(price) to find the value of ${\beta}$.
+
+According to the linearized equation, the estimated price elasticity of demand for milk, ${\beta}$, is `r elasticity`, meaning on average across the customers, a 1% increase in price for milk produces a `r elasticity * -1`% decrease in sales (demand) of milk.
+
+To verify, a 95% bootstrap confidence interval can be ran for the price elasticity of demand, and after taking it, we are 95% confident that the true price elasticity of demand is between `r milk_lower` and `r milk_upper`, meaning on average across the customers, for a 1% increase in price for milk, there is a `r milk_upper * -1`% to `r milk_lower * -1`% decrease in sales (demand) of milk.
